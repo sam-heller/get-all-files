@@ -1,13 +1,14 @@
 import fs from 'fs'
-import { sep, resolve } from 'path'
+import { sep, resolve, basename } from 'path'
 
 const fa = fs.promises
 
 function normalizeOptions({
   resolve = false,
-  isExcludedDir = () => false
+  isExcludedDir = () => false,
+  isExcludedFile = () => false
 } = {}) {
-  return { resolve, isExcludedDir }
+  return { resolve, isExcludedDir, isExcludedFile }
 }
 
 function normalizeDirname(dirname, options) {
@@ -38,9 +39,13 @@ function* sync(filename, options) {
       const filename = dirname + dirent.name
 
       if (dirent.isDirectory()) {
-        yield* walk(filename + sep)
+        if (!options.isExcludedDir(dirent.name)) {
+          yield* walk(filename + sep)
+        }
       } else {
-        yield filename
+        if (!options.isExcludedFile(dirent.name)) {
+          yield filename
+        }
       }
     }
   })(normalizeDirname(filename, options))
@@ -91,8 +96,14 @@ function walk(dirnames, filenames, notifier, options) {
   let pending = dirnames.length
 
   for (const dirname of dirnames) {
-    if (options.isExcludedDir(dirname)) {
-      continue
+    if (options.isExcludedDir(basename(dirname))) {
+      notifier.resolve()
+      if (--pending === 0) {
+        walk(children, filenames, notifier, options)
+        return
+      } else {
+        continue
+      }
     }
 
     fs.readdir(dirname, { withFileTypes: true }, (error, dirents) => {
@@ -107,7 +118,9 @@ function walk(dirnames, filenames, notifier, options) {
         if (dirent.isDirectory()) {
           children.push(filename + sep)
         } else {
-          filenames.push(filename)
+          if (options.isExcludedFile(dirent.name) == false) {
+            filenames.push(filename)
+          }
         }
       }
 

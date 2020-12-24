@@ -1,7 +1,7 @@
 import test from 'ava'
 import fs from 'fs'
 import { join } from 'path'
-import getAllFiles from '../lib/get-all-files'
+import getAllFiles from '../../lib/get-all-files'
 
 const fixtures = join(__dirname, `fixtures`)
 
